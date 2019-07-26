@@ -7,14 +7,19 @@
 #include <string>
 #include <sstream>
 
-const int WIDTH = 3000; //MAX = 8192
-const int HEIGHT = 3000; //MAX = 8192
-const int K_MAX = 100;
+const int WIDTH = 800; //MAX = 8192
+const int HEIGHT = 800; //MAX = 8192
+int K_MAX = 20;
 sf::Vertex mandel[HEIGHT * WIDTH];
 
-const double centerX = -0.5; //
-const double centerY = 0;
-const double lambda = 1500; //lambda pixels = 1 unité //2 unités de hauteur c'est bien pour tout voir
+struct Position
+{
+    double x, y;
+};
+
+Position real_origin = {0, 0};
+const int pixel_size = 1;
+double lambda = 150; //lambda pixels = 1 unité //2 unités de hauteur c'est bien pour tout voir
 
 
 std::string get_file_name()
@@ -22,7 +27,7 @@ std::string get_file_name()
     double realW = WIDTH / lambda;
     double realH = HEIGHT / lambda;
 
-    std::vector<double> fnames = {WIDTH, HEIGHT, realW, realH, centerX, centerY, K_MAX};
+    std::vector<double> fnames = {WIDTH, HEIGHT, realW, realH, real_origin.x, real_origin.y, K_MAX};
     std::vector<std::string> snames;
     for(double d : fnames)
     {
@@ -36,12 +41,22 @@ std::string get_file_name()
     + "_(Ox,Oy)(" + snames[4] + "," + snames[5] + ")" + "_KMAX" + snames[6] + ".jpg";
 }
 
+sf::Image get_screenshot()
+{
+    sf::RenderTexture screen;
+    screen.create(WIDTH, HEIGHT);
+    screen.draw(mandel, WIDTH * HEIGHT, sf::Points);
+    screen.display();
+
+    sf::Texture boudi = screen.getTexture();
+
+    return boudi.copyToImage();
+}
+
 sf::Vector2f coord_transfo(sf::Vector2f a)
 {
-
-
-    double X = (a.x - (double)(WIDTH / 2)) / lambda + centerX;
-    double Y = ((double)(HEIGHT / 2) - a.y) / lambda + centerY;
+    double X = (a.x - (double)(WIDTH / 2)) / lambda + real_origin.x;
+    double Y = ((double)(HEIGHT / 2) - a.y) / lambda + real_origin.y;
     return sf::Vector2f(X, Y);
 }
 
@@ -68,40 +83,86 @@ int calc_k(sf::Vector2f c)
 
 double calc_intensity(int k)
 {
-    return 255.0 - (double)k / K_MAX * 255.0;
+    return 255.0 - (pow(- (double)k / K_MAX + 1, -0.1) - 1) * 255.0;
 }
-int main()
+
+void color_pixel(int x, int y, int intensity)
 {
-   // sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "SFML works!", sf::Style::Fullscreen);
-
-
-    for(int i = 0; i < HEIGHT; i++)
+    for(int i = y; i < y + pixel_size; i++)
     {
-        for(int j = 0; j < WIDTH; j++)
+        for(int j = x; j < x + pixel_size; j++)
         {
             mandel[i * WIDTH + j].position = sf::Vector2f(j,i);
+            mandel[i * WIDTH + j].color = sf::Color(intensity, intensity, intensity, intensity);
+        }
+    }
+}
+void compute_mandelbrot()
+{
+    for(int i = 0; i < HEIGHT; i += pixel_size)
+    {
+        for(int j = 0; j < WIDTH; j += pixel_size)
+        {
             sf::Vector2f c = coord_transfo(sf::Vector2f(j,i));
 
             int k = calc_k(c);
             int intensity = calc_intensity(k);
 
-            mandel[i * WIDTH + j].color = sf::Color(intensity, intensity, intensity, intensity);
+            color_pixel(j,i,intensity);
         }
     }
+}
 
-  //  window.draw(mandel, HEIGHT * WIDTH, sf::Points);
-    sf::RenderTexture screen;
-    screen.create(WIDTH, HEIGHT);
-    screen.draw(mandel, WIDTH * HEIGHT, sf::Points);
-    screen.display();
+int main()
+{
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "M");
 
-    sf::Texture boudi = screen.getTexture();
+    bool is_dragging = false;
+    Position old_pos;
+    while (window.isOpen())
+    {
+        // check all the window's events that were triggered since the last iteration of the loop
+        sf::Event event;
 
-    sf::Image screenshot = boudi.copyToImage();
+        while (window.pollEvent(event))
+        {
+            if(event.type == sf::Event::MouseWheelScrolled)
+            {
+                lambda *= pow(2,event.mouseWheelScroll.delta);
+                K_MAX *= pow(1.5,event.mouseWheelScroll.delta);
+
+            }
+            else if(event.type == sf::Event::MouseButtonPressed)
+            {
+                is_dragging = true;
+                old_pos = {event.mouseButton.x, event.mouseButton.y};
+            }
+            else if(event.type == sf::Event::MouseButtonReleased)
+                is_dragging = false;
+            else if(event.type == sf::Event::MouseMoved && is_dragging)
+            {
+                real_origin.x += (old_pos.x - event.mouseMove.x) / lambda;
+                real_origin.y += (event.mouseMove.y - old_pos.y) / lambda;
+                old_pos.x = event.mouseMove.x;
+                old_pos.y = event.mouseMove.y;
+            }
+            else if (event.type == sf::Event::Closed)
+                window.close();
+        }
+
+        //std::cout << K_MAX << '\n';
+        window.clear(sf::Color::Black);
+        compute_mandelbrot();
+        window.draw(mandel, HEIGHT * WIDTH, sf::Points);
+        window.display();
+    }
+
+
+
+    sf::Image screenshot = get_screenshot();
 
     std::string name = get_file_name();
     screenshot.saveToFile(name);
-
 
     return 0;
 }
