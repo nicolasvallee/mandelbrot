@@ -6,10 +6,11 @@
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include <complex>
 
-const int WIDTH = 800; //MAX = 8192
-const int HEIGHT = 800; //MAX = 8192
-int K_MAX = 20;
+const int WIDTH = 600; //MAX = 8192
+const int HEIGHT = 600; //MAX = 8192
+int K_MAX = 30;
 sf::Vertex mandel[HEIGHT * WIDTH];
 
 struct Position
@@ -53,37 +54,30 @@ sf::Image get_screenshot()
     return boudi.copyToImage();
 }
 
-sf::Vector2f coord_transfo(sf::Vector2f a)
+std::complex<double> coord_transfo(Position p)
 {
-    double X = (a.x - (double)(WIDTH / 2)) / lambda + real_origin.x;
-    double Y = ((double)(HEIGHT / 2) - a.y) / lambda + real_origin.y;
-    return sf::Vector2f(X, Y);
+    double X = (p.x - (double)(WIDTH / 2)) / lambda + real_origin.x;
+    double Y = ((double)(HEIGHT / 2) - p.y) / lambda + real_origin.y;
+    return {X, Y};
 }
 
-double module(sf::Vector2f a)
-{
-    return sqrt(a.x * a.x + a.y * a.y);
-}
 
-int calc_k(sf::Vector2f c)
+int calc_k(std::complex<double> c)
 {
-    sf::Vector2f z = c;
+    std::complex<double> z = c;
     int k = 1;
-    while(module(z) <= 2 && k < K_MAX)
+    while(std::abs(z) <= 2 && k < K_MAX)
     {
-        sf::Vector2f new_z;
-        new_z.x = z.x * z.x - z.y * z.y + c.x;
-        new_z.y = 2.0 * z.x * z.y + c.y;
-        z = new_z;
+        z = std::pow(z, 2) + c;
         k++;
     }
-
     return k;
 }
 
 double calc_intensity(int k)
 {
-    return 255.0 - (pow(- (double)k / K_MAX + 1, -0.1) - 1) * 255.0;
+    return 255.0 - (pow( -(double)k / K_MAX + 1, -0.1) - 1) * 255.0;
+    //return 255.0 - (k == K_MAX) * 255.0;
 }
 
 void color_pixel(int x, int y, int intensity)
@@ -93,7 +87,7 @@ void color_pixel(int x, int y, int intensity)
         for(int j = x; j < x + pixel_size; j++)
         {
             mandel[i * WIDTH + j].position = sf::Vector2f(j,i);
-            mandel[i * WIDTH + j].color = sf::Color(intensity, intensity, intensity, intensity);
+            mandel[i * WIDTH + j].color = sf::Color(intensity, intensity * intensity % 255, intensity, 255.0);
         }
     }
 }
@@ -103,7 +97,7 @@ void compute_mandelbrot()
     {
         for(int j = 0; j < WIDTH; j += pixel_size)
         {
-            sf::Vector2f c = coord_transfo(sf::Vector2f(j,i));
+            std::complex<double> c = coord_transfo({j,i});
 
             int k = calc_k(c);
             int intensity = calc_intensity(k);
@@ -113,10 +107,10 @@ void compute_mandelbrot()
     }
 }
 
-int main()
+void launch_window()
 {
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "M");
 
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "M");
     bool is_dragging = false;
     Position old_pos;
     while (window.isOpen())
@@ -129,8 +123,7 @@ int main()
             if(event.type == sf::Event::MouseWheelScrolled)
             {
                 lambda *= pow(2,event.mouseWheelScroll.delta);
-                K_MAX *= pow(1.5,event.mouseWheelScroll.delta);
-
+                //K_MAX *= pow(1.5,event.mouseWheelScroll.delta);
             }
             else if(event.type == sf::Event::MouseButtonPressed)
             {
@@ -151,13 +144,18 @@ int main()
         }
 
         //std::cout << K_MAX << '\n';
-        window.clear(sf::Color::Black);
+
         compute_mandelbrot();
+        window.clear(sf::Color::Black);
         window.draw(mandel, HEIGHT * WIDTH, sf::Points);
         window.display();
     }
+}
 
+int main()
+{
 
+    launch_window();
 
     sf::Image screenshot = get_screenshot();
 
