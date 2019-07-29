@@ -9,4 +9,4 @@ Graphics done with SFML.
 Install SFML somehow.
 
 I am very proud to announce the creation of a homemade makefile.
-Type `make` and reach paradise.
+Type `make` then execute `sfml-app` and reach paradise.
