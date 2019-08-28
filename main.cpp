@@ -38,8 +38,8 @@ std::string get_file_name()
         snames.push_back(ss.str());
     }
 
-    return "/pictures/mandel_" + snames[0] + "x" + snames[1] + "_" + snames[2] + "x" + snames[3]
-    + "_(Ox,Oy)(" + snames[4] + "," + snames[5] + ")" + "_KMAX" + snames[6] + ".jpg";
+    return "./pictures/mandel_" + snames[0] + "x" + snames[1] + "_" + snames[2] + "x" + snames[3]
+    + "_(Ox,Oy)(" + snames[4] + "," + snames[5] + ")" + "_KMAX" + snames[6] + "boudi.jpg";
 }
 
 
@@ -68,7 +68,7 @@ int calc_k(std::complex<double> c)
     int k = 1;
     while(std::abs(z) <= 2 && k < K_MAX)
     {
-        z = pow(std::abs(z.real()) + std::abs(z.imag()), 2) + c;
+        z = z * z + c;
         k++;
     }
     return k;
@@ -175,7 +175,7 @@ void launch_window()
 
 int main()
 {
-    //launch_window();
+   // launch_window();
 
     take_screenshot();
 
